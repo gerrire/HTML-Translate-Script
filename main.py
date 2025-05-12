@@ -5,17 +5,17 @@ import concurrent.futures
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-# 🔧 Настройки API
+# 🔧API Settings
 YANDEX_API_KEY = ""
 YANDEX_URL = "https://translate.api.cloud.yandex.net/translate/v2/translate"
 
-# Настройка
-CHUNK_SIZE = 50  # Увеличиваем размер чанка
+# settingы
+CHUNK_SIZE = 50  
 MAX_RETRIES = 3
-MAX_WORKERS = 8  # Количество параллельных потоков
-DELAY = 0.1  # Уменьшаем задержку между запросами
+MAX_WORKERS = 8  
+DELAY = 0.1  
 
-# Теги и атрибуты, которые НЕ нужно переводить
+# Tags and attributes that do NOT need to be translated
 EXCLUDED_TAGS = {
     "script", "style", "meta", "noscript", "code", "pre", "kbd", "samp", "var",
     "input", "textarea", "select", "option", "button", "label", "form"
@@ -29,29 +29,21 @@ EXCLUDED_ATTRIBUTES = {
 
 def should_translate(tag):
     """Проверяет, нужно ли переводить данный тег"""
-    # Не переводим служебные теги
     if tag.parent.name in EXCLUDED_TAGS:
         return False
-        
-    # Не переводим атрибуты, кроме href для ссылок
     if tag.parent.name == "a":
-        # Для ссылок переводим только текст, но не атрибут href
         if tag.parent.get("href") and tag == tag.parent.get("href"):
             return False
     else:
-        # Для всех остальных тегов проверяем атрибуты
         if any(attr in EXCLUDED_ATTRIBUTES for attr in tag.parent.attrs):
             return False
         
-    # Не переводим пустые строки или строки только с пробелами
     if not tag.strip():
         return False
         
-    # Не переводим строки, которые выглядят как HTML
     if tag.strip().startswith('<') or tag.strip().endswith('>'):
         return False
         
-    # Не переводим строки, которые содержат только цифры или специальные символы
     if all(c.isdigit() or c in '.,:;!?@#$%^&*()[]{}-_=+\\|/<>' for c in tag.strip()):
         return False
         
@@ -84,20 +76,16 @@ def translate_html_file(input_path, output_path, log_file):
     with open(input_path, "r", encoding="utf-8") as f:
         soup = BeautifulSoup(f, "html.parser")
 
-    # Собираем только те строки, которые нужно перевести
     all_strings = [tag for tag in soup.find_all(string=True) if should_translate(tag)]
     
     if not all_strings:
         log_file.write(f"[!] Нет текста для перевода в файле: {input_path}\n")
         return
 
-    # Разбиваем на чанки для параллельной обработки
     chunks = [all_strings[i:i + CHUNK_SIZE] for i in range(0, len(all_strings), CHUNK_SIZE)]
     
-    # Создаем словарь для хранения результатов
     results = {}
-    
-    # Параллельно переводим чанки
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         future_to_chunk = {
             executor.submit(translate_chunk, [str(tag) for tag in chunk]): chunk 
@@ -115,7 +103,7 @@ def translate_html_file(input_path, output_path, log_file):
             except Exception as e:
                 log_file.write(f"[!] Ошибка обработки чанка: {e}\n")
 
-    # Заменяем оригинальные строки на переведенные
+е
     for tag in soup.find_all(string=True):
         if should_translate(tag):
             if tag in results:
